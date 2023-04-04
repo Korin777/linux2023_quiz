@@ -11,7 +11,6 @@
 #define rb_node(x_type)       \
     struct {                  \
         x_type *left, *right; \
-        bool red;             \
     }
 
 /* Each node in the RB tree consumes at least 1 byte of space (for the
@@ -57,24 +56,26 @@
     } while (0)
 
 /* Right accessors */
-#define rbtn_right_get(x_type, x_field, x_node) ((x_node)->x_field.right)
+#define rbtn_right_get(x_type, x_field, x_node) ((x_type *) ((((uintptr_t) (x_node)->x_field.right)) & ~3))
 #define rbtn_right_set(x_type, x_field, x_node, x_right) \
     do {                                                 \
-        (x_node)->x_field.right = x_right;               \
+        (x_node)->x_field.right =                \
+                (x_type *) (((uintptr_t) x_right) |           \
+                            (((uintptr_t) (x_node)->x_field.right) & 1));\
     } while (0)
 /* Color accessors */
-#define rbtn_red_get(x_type, x_field, x_node) ((x_node)->x_field.red)
+#define rbtn_red_get(x_type, x_field, x_node)  ((bool) (((uintptr_t)(x_node)->x_field.right) & 1))
 #define rbtn_color_set(x_type, x_field, x_node, x_red) \
     do {                                               \
-        (x_node)->x_field.red = (x_red);               \
+        (x_node)->x_field.right = (x_type *) ((((uintptr_t)(x_node)->x_field.right) & ~3) | (x_red));  \
     } while (0)
 #define rbtn_red_set(x_type, x_field, x_node) \
     do {                                      \
-        (x_node)->x_field.red = true;         \
+        (x_type *) (((uintptr_t)(x_node)->x_field.right) | 1);         \
     } while (0)
 #define rbtn_black_set(x_type, x_field, x_node) \
     do {                                        \
-        (x_node)->x_field.red = false;          \
+        (x_type *) (((uintptr_t)(x_node)->x_field.right) & ~3);          \
     } while (0)
 
 /* Node initializer */
@@ -272,10 +273,10 @@ static int sum_subtree(node_t *node)
              pre = rbtn_right_get(node_t, link, pre)) {
         }
         if (!rbtn_right_get(node_t, link, pre)) {
-            rbtn_right_get(node_t, link, pre) = node;
+            rbtn_right_set(node_t, link, pre, node);
             node = rbtn_left_get(node_t, link, node); // JJJJ
         } else {
-            rbtn_right_get(node_t, link, pre) = NULL; // KKKK
+            rbtn_right_set(node_t, link, pre, NULL);
 
         do_print:
             result += node->value;
